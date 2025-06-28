@@ -1,5 +1,5 @@
 # DeltaDesk
-##DeltaDesk is a modern, open-source desktop interface that allows users to explore, query, and manage Delta Lake tables stored in Azure Data Lake Storage Gen2 (ADLS) using cloud-based compute engines like Databricks SQL Warehouse and Azure Synapse Analytics—all within a smooth, SSMS-style experience.
+## DeltaDesk is a modern, open-source desktop interface that allows users to explore, query, and manage Delta Lake tables stored in Azure Data Lake Storage Gen2 (ADLS) using cloud-based compute engines like Databricks SQL Warehouse and Azure Synapse Analytics—all within a smooth, SSMS-style experience.
 
 ⸻
 
