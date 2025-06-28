@@ -2,7 +2,6 @@
 
 ### 🤝 `CONTRIBUTING.md`
 
-```markdown
 # Contributing to DeltaDesk
 
 First off, thank you for considering contributing to DeltaDesk!
