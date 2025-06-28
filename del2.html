@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeltaDesk - Delta Lake Query Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom scrollbar (optional, for aesthetics) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748; /* dark gray */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568; /* slightly lighter gray */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Ace Editor specific styling overrides if needed */
+        .ace_editor {
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Preferred coding font */
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen bg-gray-900 text-gray-100 overflow-hidden">
+
+    <header class="bg-gray-800 p-2 border-b border-gray-700 flex items-center justify-between">
+        <nav class="flex space-x-4">
+            <div class="relative group">
+                <button class="text-gray-300 hover:text-white px-2 py-1 rounded focus:outline-none">File</button>
+                <div class="absolute hidden group-hover:block bg-gray-700 text-gray-200 z-10 rounded shadow-lg">
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600">New Query</a>
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600">Open File...</a>
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600">Save Query</a>
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600 border-t border-gray-600">Exit</a>
+                </div>
+            </div>
+            <div class="relative group">
+                <button class="text-gray-300 hover:text-white px-2 py-1 rounded focus:outline-none">View</button>
+                <div class="absolute hidden group-hover:block bg-gray-700 text-gray-200 z-10 rounded shadow-lg">
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600">Explorer</a>
+                    <a href="#" class="block px-4 py-2 hover:bg-gray-600">Query History</a>
+                </div>
+            </div>
+            <button class="text-gray-300 hover:text-white px-2 py-1 rounded focus:outline-none">Tools</button>
+            <button class="text-gray-300 hover:text-white px-2 py-1 rounded focus:outline-none">Help</button>
+        </nav>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-400">DeltaDesk Preview</span>
+        </div>
+    </header>
+
+    <main class="flex flex-grow overflow-hidden">
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col p-2 overflow-y-auto">
+            <div class="flex justify-around mb-2 border-b border-gray-700 pb-2">
+                <button id="connectionsTab" class="flex-1 text-center py-2 text-blue-400 border-b-2 border-blue-500 hover:text-blue-300 focus:outline-none">
+                    <i class="fas fa-plug mr-1"></i> Connections
+                </button>
+                <button id="explorerTab" class="flex-1 text-center py-2 text-gray-400 hover:text-white focus:outline-none">
+                    <i class="fas fa-database mr-1"></i> Explorer
+                </button>
+                <button id="historyTab" class="flex-1 text-center py-2 text-gray-400 hover:text-white focus:outline-none">
+                    <i class="fas fa-history mr-1"></i> History
+                </button>
+            </div>
+
+            <div id="connectionsContent" class="flex-grow">
+                <h3 class="text-lg font-semibold mb-3 text-white">Connected Lakes</h3>
+                <div class="space-y-2">
+                    <div class="bg-gray-700 p-2 rounded flex items-center justify-between">
+                        <span class="text-sm">MyProdLake (ADLS Gen2)</span>
+                        <button class="text-blue-400 hover:text-blue-300 text-xs">Connect</button>
+                    </div>
+                    <div class="bg-gray-700 p-2 rounded flex items-center justify-between">
+                        <span class="text-sm">DevDeltaLake (SAS)</span>
+                        <button class="text-blue-400 hover:text-blue-300 text-xs">Connect</button>
+                    </div>
+                    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4 flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i> Add New Connection
+                    </button>
+                </div>
+            </div>
+
+            <div id="explorerContent" class="hidden flex-grow">
+                <h3 class="text-lg font-semibold mb-3 text-white">Data Explorer</h3>
+                <div class="space-y-1 text-sm">
+                    <div class="cursor-pointer hover:bg-gray-700 p-1 rounded flex items-center toggle-tree" data-target="bronze-tables">
+                        <i class="fas fa-caret-right mr-2 text-gray-400"></i>
+                        <i class="fas fa-folder mr-2 text-yellow-500"></i> Bronze Layer
+                    </div>
+                    <div id="bronze-tables" class="ml-4 pl-2 border-l border-gray-600 hidden">
+                        <div class="flex items-center p-1 hover:bg-gray-700 rounded">
+                            <i class="fas fa-table mr-2 text-green-500"></i> sales_raw <span class="ml-auto text-xs text-gray-400">[Delta]</span>
+                            <i class="fas fa-info-circle ml-2 text-gray-500 hover:text-white cursor-pointer" title="View Schema"></i>
+                        </div>
+                        <div class="flex items-center p-1 hover:bg-gray-700 rounded">
+                            <i class="fas fa-table mr-2 text-green-500"></i> customers_landing
+                        </div>
+                    </div>
+
+                    <div class="cursor-pointer hover:bg-gray-700 p-1 rounded flex items-center toggle-tree" data-target="silver-tables">
+                        <i class="fas fa-caret-right mr-2 text-gray-400"></i>
+                        <i class="fas fa-folder mr-2 text-blue-500"></i> Silver Layer
+                    </div>
+                    <div id="silver-tables" class="ml-4 pl-2 border-l border-gray-600 hidden">
+                        <div class="flex items-center p-1 hover:bg-gray-700 rounded">
+                            <i class="fas fa-table mr-2 text-green-500"></i> dim_products
+                        </div>
+                        <div class="flex items-center p-1 hover:bg-gray-700 rounded">
+                            <i class="fas fa-table mr-2 text-green-500"></i> fact_sales_cleaned
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="historyContent" class="hidden flex-grow">
+                <h3 class="text-lg font-semibold mb-3 text-white">Query History</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="bg-gray-700 p-2 rounded cursor-pointer hover:bg-gray-600">
+                        <p class="truncate text-gray-300">SELECT * FROM bronze.sales_raw WHERE...</p>
+                        <span class="text-xs text-gray-400">2025-06-28 09:30 AM</span>
+                    </li>
+                    <li class="bg-gray-700 p-2 rounded cursor-pointer hover:bg-gray-600">
+                        <p class="truncate text-gray-300">UPDATE silver.dim_customers SET...</p>
+                        <span class="text-xs text-gray-400">2025-06-27 04:15 PM</span>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <div class="flex flex-col flex-grow bg-gray-900">
+            <div id="queryTabs" class="flex-shrink-0 bg-gray-800 border-b border-gray-700 flex overflow-x-auto">
+                <div class="flex items-center bg-gray-700 px-4 py-2 border-r border-gray-600 cursor-pointer text-sm font-medium relative active-tab">
+                    <span>Query 1</span>
+                    <button class="ml-2 text-gray-400 hover:text-white" title="Close Tab">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                    <div class="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500"></div>
+                </div>
+                <div class="flex items-center bg-gray-800 px-4 py-2 border-r border-gray-700 cursor-pointer text-sm font-medium hover:bg-gray-700">
+                    <span>New Query*</span>
+                    <button class="ml-2 text-gray-400 hover:text-white" title="Close Tab">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+                 <button class="px-4 py-2 text-gray-400 hover:text-white" title="New Query Tab">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div class="flex-shrink-0 bg-gray-800 p-2 border-b border-gray-700 flex items-center space-x-3">
+                <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center">
+                    <i class="fas fa-play mr-2"></i> Run Query
+                </button>
+                <button class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center">
+                    <i class="fas fa-stop mr-2"></i> Stop
+                </button>
+                <select class="bg-gray-700 text-white py-2 px-3 rounded focus:outline-none">
+                    <option>Databricks SQL Warehouse (Default)</option>
+                    <option>Azure Synapse Pool 1</option>
+                </select>
+            </div>
+
+            <div id="editor" class="flex-grow bg-gray-900 text-white border-b border-gray-700" style="height: 300px;">
+                -- Your SQL query goes here
+                SELECT *
+                FROM bronze.customer_raw
+                WHERE ingestion_date = CURRENT_DATE();
+            </div>
+
+            <div id="results-container" class="flex flex-col flex-grow overflow-hidden relative">
+                <div class="h-2 bg-gray-700 cursor-row-resize hover:bg-gray-600 flex-shrink-0" id="results-resizer"></div>
+
+                <div class="flex-shrink-0 bg-gray-800 border-b border-gray-700 flex">
+                    <button class="px-4 py-2 text-blue-400 border-b-2 border-blue-500 hover:text-blue-300 focus:outline-none" id="resultsTab">Results</button>
+                    <button class="px-4 py-2 text-gray-400 hover:text-white focus:outline-none" id="messagesTab">Messages</button>
+                </div>
+
+                <div id="resultsContent" class="flex-grow overflow-auto p-4 bg-gray-900">
+                    <h3 class="text-md font-semibold mb-2">Query Results</h3>
+                    <table class="w-full text-left table-auto border-collapse border border-gray-700">
+                        <thead>
+                            <tr class="bg-gray-700">
+                                <th class="px-4 py-2 border border-gray-600">id</th>
+                                <th class="px-4 py-2 border border-gray-600">name</th>
+                                <th class="px-4 py-2 border border-gray-600">city</th>
+                                <th class="px-4 py-2 border border-gray-600">ingestion_date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-gray-800 hover:bg-gray-700">
+                                <td class="px-4 py-2 border border-gray-700">1</td>
+                                <td class="px-4 py-2 border border-gray-700">Alice Smith</td>
+                                <td class="px-4 py-2 border border-gray-700">New York</td>
+                                <td class="px-4 py-2 border border-gray-700">2025-06-28</td>
+                            </tr>
+                            <tr class="bg-gray-900 hover:bg-gray-700">
+                                <td class="px-4 py-2 border border-gray-700">2</td>
+                                <td class="px-4 py-2 border border-gray-700">Bob Johnson</td>
+                                <td class="px-4 py-2 border border-gray-700">Los Angeles</td>
+                                <td class="px-4 py-2 border border-gray-700">2025-06-28</td>
+                            </tr>
+                            </tbody>
+                    </table>
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-file-csv mr-1"></i> Export CSV
+                        </button>
+                        <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-file-excel mr-1"></i> Export Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div id="messagesContent" class="hidden flex-grow overflow-auto p-4 bg-gray-900 text-sm text-gray-300">
+                    <h3 class="text-md font-semibold mb-2">Messages</h3>
+                    <p class="text-green-400 mb-1">Query executed successfully. (2 rows affected, 150ms)</p>
+                    <p class="text-yellow-400">Warning: Table 'customer_raw' is large, consider adding a LIMIT clause.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 p-2 text-xs text-gray-400 border-t border-gray-700 flex items-center justify-between">
+        <span>Connected to: MyProdLake (Databricks SQL Warehouse)</span>
+        <span>Status: Ready</span>
+        <span>Row Count: 2</span>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script>
+        // Initialize Ace Editor
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/dracula"); // Or "ace/theme/monokai", "ace/theme/cobalt" etc.
+        editor.session.setMode("ace/mode/sql");
+        editor.session.setUseWrapMode(true); // Enable word wrap
+        editor.setOption("showPrintMargin", false);
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true, // For live autocomplete
+            enableSnippets: true
+        });
+
+        // Basic UI Interactivity (Left Pane Tabs)
+        const tabs = {
+            connections: document.getElementById('connectionsTab'),
+            explorer: document.getElementById('explorerTab'),
+            history: document.getElementById('historyTab')
+        };
+        const contents = {
+            connections: document.getElementById('connectionsContent'),
+            explorer: document.getElementById('explorerContent'),
+            history: document.getElementById('historyContent')
+        };
+
+        function switchLeftPaneTab(activeTab) {
+            for (const key in tabs) {
+                if (key === activeTab) {
+                    tabs[key].classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                    tabs[key].classList.remove('text-gray-400', 'hover:text-white');
+                    contents[key].classList.remove('hidden');
+                } else {
+                    tabs[key].classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+                    tabs[key].classList.add('text-gray-400', 'hover:text-white');
+                    contents[key].classList.add('hidden');
+                }
+            }
+        }
+
+        tabs.connections.addEventListener('click', () => switchLeftPaneTab('connections'));
+        tabs.explorer.addEventListener('click', () => switchLeftPaneTab('explorer'));
+        tabs.history.addEventListener('click', () => switchLeftPaneTab('history'));
+
+        // Basic UI Interactivity (Results/Messages Tabs)
+        const resultsTabBtn = document.getElementById('resultsTab');
+        const messagesTabBtn = document.getElementById('messagesTab');
+        const resultsContent = document.getElementById('resultsContent');
+        const messagesContent = document.getElementById('messagesContent');
+
+        function switchResultsTab(activeTab) {
+            if (activeTab === 'results') {
+                resultsTabBtn.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                resultsTabBtn.classList.remove('text-gray-400', 'hover:text-white');
+                messagesTabBtn.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+                messagesTabBtn.classList.add('text-gray-400', 'hover:text-white');
+                resultsContent.classList.remove('hidden');
+                messagesContent.classList.add('hidden');
+            } else {
+                messagesTabBtn.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                messagesTabBtn.classList.remove('text-gray-400', 'hover:text-white');
+                resultsTabBtn.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+                resultsTabBtn.classList.add('text-gray-400', 'hover:text-white');
+                messagesContent.classList.remove('hidden');
+                resultsContent.classList.add('hidden');
+            }
+        }
+
+        resultsTabBtn.addEventListener('click', () => switchResultsTab('results'));
+        messagesTabBtn.addEventListener('click', () => switchResultsTab('messages'));
+
+        // Tree View Toggle (Data Explorer)
+        document.querySelectorAll('.toggle-tree').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.dataset.target;
+                const targetElement = document.getElementById(targetId);
+                const icon = button.querySelector('i.fa-caret-right, i.fa-caret-down');
+
+                if (targetElement.classList.contains('hidden')) {
+                    targetElement.classList.remove('hidden');
+                    icon.classList.remove('fa-caret-right');
+                    icon.classList.add('fa-caret-down');
+                } else {
+                    targetElement.classList.add('hidden');
+                    icon.classList.remove('fa-caret-down');
+                    icon.classList.add('fa-caret-right');
+                }
+            });
+        });
+
+        // Basic Resizer for results pane (conceptual, full implementation is more complex)
+        const resizer = document.getElementById('results-resizer');
+        const resultsContainer = document.getElementById('results-container');
+        const editorContainer = document.getElementById('editor');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.body.style.cursor = 'row-resize';
+            // Disable text selection during resize
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            const mainHeight = document.querySelector('main').offsetHeight;
+            const headerHeight = document.querySelector('header').offsetHeight;
+            const editorControlsHeight = document.querySelector('.bg-gray-800.p-2.border-b').offsetHeight;
+            const footerHeight = document.querySelector('footer').offsetHeight;
+
+            // Calculate new height for editor based on mouse position
+            // This is a simplified calculation; a robust resizer needs to consider min/max heights
+            const newEditorHeight = e.clientY - headerHeight - editorControlsHeight - 2; // -2 for resizer itself
+
+            if (newEditorHeight > 100 && (mainHeight - newEditorHeight - footerHeight - resizer.offsetHeight) > 100) { // Min height checks
+                editorContainer.style.height = `${newEditorHeight}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = 'auto';
+        });
+
+    </script>
+</body>
+</html>
